@@ -1,0 +1,69 @@
+Scene: /scratch/data/Replica/office0
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.21it/s]
+  SSIM :    0.9800780
+  PSNR :   43.1060181
+  LPIPS:    0.0824814
+	
+/scratch/data/Replica/office1                                                                                  [40/1964]
+
+Scene: /scratch/data/Replica/office1
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.21it/s]
+  SSIM :    0.9670179
+  PSNR :   41.9792213
+  LPIPS:    0.1796463
+
+/scratch/data/Replica/office2
+
+Scene: /scratch/data/Replica/office2
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.20it/s]
+  SSIM :    0.9651362
+  PSNR :   37.5846214
+  LPIPS:    0.1382501
+
+/scratch/data/Replica/office3
+
+Scene: /scratch/data/Replica/office3
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.21it/s]
+  SSIM :    0.9627555
+  PSNR :   37.4855919
+  LPIPS:    0.1183925
+
+/scratch/data/Replica/office4
+
+Scene: /scratch/data/Replica/office4
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.21it/s]
+  SSIM :    0.9657330
+  PSNR :   38.9365997
+  LPIPS:    0.1215506
+
+/scratch/data/Replica/room0
+
+Scene: /scratch/data/Replica/room0
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:29<00:00,  1.21it/s]
+  SSIM :    0.9618546
+  PSNR :   36.8754272
+  LPIPS:    0.0987418
+
+/scratch/data/Replica/room1
+
+Scene: /scratch/data/Replica/room1
+Method: ours_30000
+Metric evaluation progress: 100%|███████████████████████████████████████████████████████| 36/36 [00:30<00:00,  1.20it/s]
+  SSIM :    0.9667808
+  PSNR :   38.6175385
+  LPIPS:    0.1120457
+
+/scratch/data/Replica/room2
+
+Scene: /scratch/data/Replica/room2
+Method: ours_30000
+Metric evaluation progress: 100%|█████████████████████████████████████████████████████| 282/282 [03:39<00:00,  1.28it/s]
+  SSIM :    0.9711358
+  PSNR :   40.3036537
+  LPIPS:    0.1159411

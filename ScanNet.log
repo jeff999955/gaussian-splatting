@@ -1,0 +1,46 @@
+/scratch/data/ScanNet/scans/scene0000_00
+
+Scene: /scratch/data/ScanNet/scans/scene0000_00
+Method: ours_30000
+  SSIM :    0.8005850
+  PSNR :   19.0852394
+  LPIPS:    0.3929638
+
+/scratch/data/ScanNet/scans/scene0059_00
+
+Scene: /scratch/data/ScanNet/scans/scene0059_00
+Method: ours_30000
+  SSIM :    0.7970517
+  PSNR :   18.0596199
+  LPIPS:    0.3708684
+
+Scene: /scratch/data/ScanNet/scans/scene0106_00
+Method: ours_30000
+  SSIM :    0.8525228
+  PSNR :   18.5537720
+  LPIPS:    0.3087867
+
+/scratch/data/ScanNet/scans/scene0169_00
+
+Scene: /scratch/data/ScanNet/scans/scene0169_00
+Method: ours_30000
+  SSIM :    0.8422344
+  PSNR :   20.0367584
+  LPIPS:    0.3322496
+
+/scratch/data/ScanNet/scans/scene0181_00
+
+Scene: /scratch/data/ScanNet/scans/scene0181_00
+Method: ours_30000
+  SSIM :    0.8065459
+  PSNR :   16.8930225
+  LPIPS:    0.3849907
+
+/scratch/data/ScanNet/scans/scene0207_00
+
+Scene: /scratch/data/ScanNet/scans/scene0207_00
+Method: ours_30000
+  SSIM :    0.7082585
+  PSNR :   17.9997253
+  LPIPS:    0.4369403
+
