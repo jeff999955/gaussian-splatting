@@ -145,14 +145,19 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
+    settings = "mip360" # "pointnerf"
     if eval:
-        if len(cam_infos) > 2900: # neural point-based graphics' configuration
-            test_cam_infos = cam_infos[::100]
-            train_cam_infos = [cam_infos[i] for i in range(len(cam_infos)) if (((i % 100) > 19) and ((i % 100) < 81 or (i//100+1)*100>=len(cam_infos)))]
-        else:  # nsvf configuration
-            step=5
-            train_cam_infos = cam_infos[::step]
-            test_cam_infos =  cam_infos
+        if settings == "mip360":
+            train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
+            test_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold == 0]
+        elif settings == "pointnerf":
+            if len(cam_infos) > 2900: # neural point-based graphics' configuration
+                test_cam_infos = cam_infos[::100]
+                train_cam_infos = [cam_infos[i] for i in range(len(cam_infos)) if (((i % 100) > 19) and ((i % 100) < 81 or (i//100+1)*100>=len(cam_infos)))]
+            else:  # nsvf configuration
+                step=5
+                train_cam_infos = cam_infos[::step]
+                test_cam_infos =  cam_infos
     else:
         train_cam_infos = cam_infos
         test_cam_infos = []
