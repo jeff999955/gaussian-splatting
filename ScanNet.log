@@ -44,3 +44,39 @@ Method: ours_30000
   PSNR :   17.9997253
   LPIPS:    0.4369403
 
+/scratch/data/ScanNet/scans/scene0101_00
+
+Scene: /scratch/data/ScanNet/scans/scene0101_00
+Unable to compute metrics for model /scratch/data/ScanNet/scans/scene0101_00
+/scratch/data/ScanNet/scans/scene0241_00
+/scratch/data/ScanNet/scans/scene0101_00
+
+Scene: /scratch/data/ScanNet/scans/scene0101_00
+Method: ours_30000
+  SSIM :    0.7784273
+  PSNR :   23.9090824
+  LPIPS:    0.3732030
+
+/scratch/data/ScanNet/scans/scene0241_00
+
+Scene: /scratch/data/ScanNet/scans/scene0241_00
+Method: ours_30000
+  SSIM :    0.7855699
+  PSNR :   20.9828491
+  LPIPS:    0.3827683
+
+/scratch/data/ScanNet/scans/scene0101_00
+
+Scene: /scratch/data/ScanNet/scans/scene0101_00
+Method: ours_30000
+  SSIM :    0.7862704
+  PSNR :   23.4626369
+  LPIPS:    0.3831528
+
+/scratch/data/ScanNet/scans/scene0241_00
+
+Scene: /scratch/data/ScanNet/scans/scene0241_00
+Method: ours_30000
+  SSIM :    0.7854170
+  PSNR :   20.8588486
+  LPIPS:    0.3859110
