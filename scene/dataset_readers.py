@@ -96,11 +96,10 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
-        with Image.open(image_path) as image:
-            image.load()
-            cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                              image_path=image_path, image_name=image_name, width=width, height=height)
-            cam_infos.append(cam_info)
+        image = Image.open(image_path) 
+        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
+                            image_path=image_path, image_name=image_name, width=width, height=height)
+        cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos
 
@@ -145,7 +144,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
-    settings = "mip360" # "pointnerf"
+    settings = "pointnerf"
     if eval:
         if settings == "mip360":
             train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
