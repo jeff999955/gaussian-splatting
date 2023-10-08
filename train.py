@@ -25,12 +25,7 @@ from utils.general_utils import safe_state
 from utils.image_utils import psnr
 from utils.loss_utils import l1_loss, ssim
 
-# try:
-#     from torch.utils.tensorboard import SummaryWriter
-#     TENSORBOARD_FOUND = True
-# except ImportError:
-#     TENSORBOARD_FOUND = False
-TENSORBOARD_FOUND = False
+import wandb
 
 
 def training(
@@ -42,10 +37,9 @@ def training(
     checkpoint_iterations,
     checkpoint,
     debug_from,
-    shuffle_train = True,
+    shuffle_train=True,
 ):
     first_iter = 0
-    tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
     scene = Scene(dataset, gaussians, shuffle=shuffle_train)
     gaussians.training_setup(opt)
@@ -142,7 +136,6 @@ def training(
 
             # Log and save
             training_report(
-                tb_writer,
                 iteration,
                 Ll1,
                 loss,
@@ -199,31 +192,7 @@ def training(
                 )
 
 
-def prepare_output_and_logger(args):
-    if not args.model_path:
-        if os.getenv("OAR_JOB_ID"):
-            unique_str = os.getenv("OAR_JOB_ID")
-        else:
-            unique_str = str(uuid.uuid4())
-        args.model_path = os.path.join("./output/", unique_str[0:10])
-
-    # Set up output folder
-    print("Output folder: {}".format(args.model_path))
-    os.makedirs(args.model_path, exist_ok=True)
-    with open(os.path.join(args.model_path, "cfg_args"), "w") as cfg_log_f:
-        cfg_log_f.write(str(Namespace(**vars(args))))
-
-    # Create Tensorboard writer
-    tb_writer = None
-    if TENSORBOARD_FOUND:
-        tb_writer = SummaryWriter(args.model_path)
-    else:
-        print("Tensorboard not available: not logging progress")
-    return tb_writer
-
-
 def training_report(
-    tb_writer,
     iteration,
     Ll1,
     loss,
@@ -234,10 +203,9 @@ def training_report(
     renderFunc,
     renderArgs,
 ):
-    if tb_writer:
-        tb_writer.add_scalar("train_loss_patches/l1_loss", Ll1.item(), iteration)
-        tb_writer.add_scalar("train_loss_patches/total_loss", loss.item(), iteration)
-        tb_writer.add_scalar("iter_time", elapsed, iteration)
+    wandb.log({"train_loss_patches/l1_loss": Ll1.item(), "iteration": iteration})
+    wandb.log({"train_loss_patches/total_loss": loss.item(), "iteration": iteration})
+    wandb.log({"iter_time": elapsed, "iteration": iteration})
 
     # Report test and samples of training set
     if iteration in testing_iterations:
@@ -266,20 +234,21 @@ def training_report(
                     gt_image = torch.clamp(
                         viewpoint.original_image.to("cuda"), 0.0, 1.0
                     )
-                    if tb_writer and (idx < 5):
-                        tb_writer.add_images(
-                            config["name"]
-                            + "_view_{}/render".format(viewpoint.image_name),
-                            image[None],
-                            global_step=iteration,
-                        )
-                        if iteration == testing_iterations[0]:
-                            tb_writer.add_images(
-                                config["name"]
-                                + "_view_{}/ground_truth".format(viewpoint.image_name),
-                                gt_image[None],
-                                global_step=iteration,
-                            )
+                    # TODO: Find out how to add image to wandb
+                    # if idx < 5:
+                    #     tb_writer.add_images(
+                    #         config["name"]
+                    #         + "_view_{}/render".format(viewpoint.image_name),
+                    #         image[None],
+                    #         global_step=iteration,
+                    #     )
+                    #     if iteration == testing_iterations[0]:
+                    #         tb_writer.add_images(
+                    #             config["name"]
+                    #             + "_view_{}/ground_truth".format(viewpoint.image_name),
+                    #             gt_image[None],
+                    #             global_step=iteration,
+                    #         )
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                 psnr_test /= len(config["cameras"])
@@ -289,21 +258,25 @@ def training_report(
                         iteration, config["name"], l1_test, psnr_test
                     )
                 )
-                if tb_writer:
-                    tb_writer.add_scalar(
-                        config["name"] + "/loss_viewpoint - l1_loss", l1_test, iteration
-                    )
-                    tb_writer.add_scalar(
-                        config["name"] + "/loss_viewpoint - psnr", psnr_test, iteration
-                    )
+                wandb.log(
+                    {
+                        config["name"] + "/loss_viewpoint - l1_loss": l1_test,
+                        "iteration": iteration,
+                    }
+                )
+                wandb.log(
+                    {
+                        config["name"] + "/loss_viewpoint - psnr": psnr_test,
+                        "iteration": iteration,
+                    }
+                )
 
-        if tb_writer:
-            tb_writer.add_histogram(
-                "scene/opacity_histogram", scene.model.get_opacity, iteration
-            )
-            tb_writer.add_scalar(
-                "total_points", scene.model.get_xyz.shape[0], iteration
-            )
+        wandb.log(
+            {"scene/opacity_histogram": scene.model.get_opacity, "iteration": iteration}
+        )
+        wandb.log(
+            {"total_points": scene.model.get_xyz.shape[0], "iteration": iteration}
+        )
         torch.cuda.empty_cache()
 
 
@@ -344,6 +317,13 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
+
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="gaussian-splatting",
+        # track hyperparameters and run metadata
+        config=vars(args),
+    )
     training(
         lp.extract(args),
         op.extract(args),
@@ -358,3 +338,4 @@ if __name__ == "__main__":
 
     # All done
     print("\nTraining complete.")
+    wandb.finish()
