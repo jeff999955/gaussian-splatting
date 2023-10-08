@@ -111,7 +111,7 @@ class Scene:
             )
         elif args.random_init_points:
             # TODO: Random Sample 100k points within the bounding box
-            point_cloud = BasicPointCloud.random()
+            point_cloud = BasicPointCloud.random(args.n_random_points)
             self.model.create_from_pcd(point_cloud, self.cameras_extent)
             print("Randomly initializing point cloud!")
         else:
