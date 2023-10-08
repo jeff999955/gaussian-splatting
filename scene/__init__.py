@@ -109,11 +109,11 @@ class Scene:
                     "point_cloud.ply",
                 )
             )
-        # elif args.no_init_pcd:
-        #     # TODO: Random Sample 100k points within the bounding box
-        #     point_cloud = BasicPointCloud.blank()
-        #     self.gaussians.create_from_pcd(point_cloud, self.cameras_extent, args.no_init_pcd)
-        #     print("Not initializing point cloud!")
+        elif args.random_init_points:
+            # TODO: Random Sample 100k points within the bounding box
+            point_cloud = BasicPointCloud.random()
+            self.model.create_from_pcd(point_cloud, self.cameras_extent)
+            print("Randomly initializing point cloud!")
         else:
             self.model.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 

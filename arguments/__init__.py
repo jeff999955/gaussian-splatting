@@ -53,6 +53,7 @@ class ParamGroup:
 
 class ModelParams(ParamGroup):
     def __init__(self, parser, sentinel=False):
+        self.random_init_points = False
         self.use_ground_truth_pose = False
         self.split_setting = "pointnerf"
         self.sh_degree = 3

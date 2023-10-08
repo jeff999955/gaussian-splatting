@@ -21,6 +21,14 @@ class BasicPointCloud(NamedTuple):
     colors: np.array
     normals: np.array
 
+    @classmethod
+    def random(cls, n: int = 100_000):
+        points = np.random.rand(n, 3)
+        colors = np.random.rand(n, 3)
+        colors = -10 + 20 * colors
+        normals = np.zeros((n, 3))
+        return BasicPointCloud(points=points, colors=colors, normals=normals)
+
 
 def geom_transform_points(points, transf_matrix):
     P, _ = points.shape
