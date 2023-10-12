@@ -14,6 +14,8 @@ import os
 import random
 from typing import Dict, List
 
+import numpy as np
+
 from arguments import ModelParams
 from scene.cameras import Camera
 from scene.dataset_readers import SceneInfo, sceneLoadTypeCallbacks
@@ -111,9 +113,15 @@ class Scene:
             )
         elif args.random_init_points:
             # TODO: Random Sample 100k points within the bounding box
-            point_cloud = BasicPointCloud.random(args.n_random_points)
+            n_points = scene_info.point_cloud.points.shape[0]
+            point_cloud = BasicPointCloud.random(n_points)
+            # conccat_point_cloud = BasicPointCloud(
+            #     np.concatenate([scene_info.point_cloud.points, point_cloud.points]),
+            #     np.concatenate([scene_info.point_cloud.colors, point_cloud.colors]),
+            #     np.concatenate([scene_info.point_cloud.normals, point_cloud.normals]),
+            # )
             self.model.create_from_pcd(point_cloud, self.cameras_extent)
-            print("Randomly initializing point cloud!")
+            print(f"Randomly initializing point cloud with {n_points} points!")
         else:
             self.model.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 

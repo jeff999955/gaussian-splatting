@@ -14,6 +14,7 @@ import sys
 import uuid
 from argparse import ArgumentParser, Namespace
 from random import randint
+import numpy as np
 
 import torch
 from tqdm import tqdm
@@ -271,8 +272,16 @@ def training_report(
                     }
                 )
 
+        opacity_list = scene.model.get_opacity.detach().cpu().numpy()
+        min_opacity = np.min(opacity_list)
+        max_opacity = np.max(opacity_list)
+        histogram = np.histogram(
+            opacity_list, bins=100, range=(min_opacity, max_opacity)
+        )
         wandb.log(
-            {"scene/opacity_histogram": scene.model.get_opacity, "iteration": iteration}
+            {
+                "opacity_histogram": wandb.Histogram(np_histogram=histogram),
+            }
         )
         wandb.log(
             {"total_points": scene.model.get_xyz.shape[0], "iteration": iteration}
