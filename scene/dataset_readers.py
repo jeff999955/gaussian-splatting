@@ -133,7 +133,7 @@ def readColmapCameras(
             )  # R is stored transposed due to 'glm' in CUDA code
             T = w2c[:3, 3]
         else:
-            # Colmap outputs the camera-to-world transform, we need the world-to-camera transform
+            # Colmap outputs the world-to-camera transform
             R = np.transpose(qvec2rotmat(extr.qvec))
             T = np.array(extr.tvec)
 
@@ -279,9 +279,12 @@ def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> Sc
         ply_path = ply_path[0]
 
         print(f"Using ground truth point cloud from {ply_path}")
+    # TODO: Remove this, this is just for dense map debugging
+    ply_path = os.path.join(path, "dense/0/fused.ply")
     try:
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
     except:
+        print("Failed to load the dense point cloud")
         pcd = None
 
     scene_info = SceneInfo(
@@ -383,6 +386,7 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
         )
 
         storePly(ply_path, xyz, SH2RGB(shs) * 255)
+
     try:
         pcd = fetchPly(ply_path)
     except:
