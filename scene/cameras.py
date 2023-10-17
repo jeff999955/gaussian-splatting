@@ -22,8 +22,8 @@ class Camera(nn.Module):
     def __init__(
         self,
         colmap_id,
-        R,
-        T,
+        R,  # in world view, i.e. from w2c
+        T,  # in world view, i.e. from w2c
         FoVx,
         FoVy,
         image_path,
