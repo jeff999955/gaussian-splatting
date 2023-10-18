@@ -97,7 +97,11 @@ def getNerfppNorm(cam_info):
 
 
 def readColmapCameras(
-    args: ModelParams, cam_extrinsics, cam_intrinsics, images_folder
+    args: ModelParams,
+    cam_extrinsics,
+    cam_intrinsics,
+    images_folder,
+    target_size=(640, 480),
 ) -> List[CameraInfo]:
     cam_infos = []
     pose_path = None
@@ -137,13 +141,18 @@ def readColmapCameras(
             R = np.transpose(qvec2rotmat(extr.qvec))
             T = np.array(extr.tvec)
 
+        target_w, target_h = target_size
+
         if intr.model == "SIMPLE_PINHOLE":
             focal_length_x = intr.params[0]
+            focal_length_x *= target_w / width
             FovY = focal2fov(focal_length_x, height)
             FovX = focal2fov(focal_length_x, width)
         elif intr.model == "PINHOLE":
             focal_length_x = intr.params[0]
             focal_length_y = intr.params[1]
+            focal_length_x *= target_w / width
+            focal_length_y *= target_h / height
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
         else:
@@ -162,8 +171,8 @@ def readColmapCameras(
             image=None,  # Lazily load the image in training loop
             image_path=image_path,
             image_name=image_name,
-            width=width,
-            height=height,
+            width=target_w,
+            height=target_h,
         )
         cam_infos.append(cam_info)
     sys.stdout.write("\n")
@@ -214,7 +223,9 @@ def storePly(path, xyz, rgb):
     ply_data.write(path)
 
 
-def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> SceneInfo:
+def readColmapSceneInfo(
+    args: ModelParams, path, images, eval, llffhold=8, target_size=(640, 480)
+) -> SceneInfo:
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -232,6 +243,7 @@ def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> Sc
         cam_extrinsics=cam_extrinsics,
         cam_intrinsics=cam_intrinsics,
         images_folder=os.path.join(path, reading_dir),
+        target_size=target_size,
     )
     cam_infos = sorted(cam_infos_unsorted.copy(), key=lambda x: x.image_name)
 
@@ -279,12 +291,9 @@ def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> Sc
         ply_path = ply_path[0]
 
         print(f"Using ground truth point cloud from {ply_path}")
-    # TODO: Remove this, this is just for dense map debugging
-    ply_path = os.path.join(path, "dense/0/fused.ply")
     try:
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
     except:
-        print("Failed to load the dense point cloud")
         pcd = None
 
     scene_info = SceneInfo(
