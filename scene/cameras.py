@@ -30,10 +30,9 @@ class Camera(nn.Module):
         image_name,
         uid,
         trans=np.array([0.0, 0.0, 0.0]),
-        scale_x=1.0,
-        scale_y=1.0,
+        scale=1.0,
         data_device="cuda",
-        target_size=(640, 480),
+        resolution=1.0,
     ):
         super(Camera, self).__init__()
 
@@ -45,11 +44,12 @@ class Camera(nn.Module):
         self.FoVy = FoVy
         self.image_path = image_path
         self.image_name = image_name
-        self.resolution = target_size
+        self.resolution = resolution
         self.image_height = None
         self.image_width = None
 
-        self.image_width, self.image_height = target_size
+        with Image.open(self.image_path) as image:
+            self.image_width, self.image_height = image.size
 
         try:
             self.data_device = torch.device(data_device)
@@ -64,13 +64,10 @@ class Camera(nn.Module):
         self.znear = 0.01
 
         self.trans = trans
-        self.scale_x = scale_x
-        self.scale_y = scale_y
+        self.scale = scale
 
         self.world_view_transform = (
-            torch.tensor(getWorld2View2(R, T, trans, scale_x, scale_y))
-            .transpose(0, 1)
-            .cuda()
+            torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
         )
         self.projection_matrix = (
             getProjectionMatrix(
