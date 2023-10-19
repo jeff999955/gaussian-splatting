@@ -14,19 +14,18 @@ import sys
 import uuid
 from argparse import ArgumentParser, Namespace
 from random import randint
-import numpy as np
 
+import numpy as np
 import torch
 from tqdm import tqdm
 
+import wandb
 from arguments import ModelParams, OptimizationParams, PipelineParams
 from gaussian_renderer import network_gui, render
 from scene import GaussianModel, Scene
 from utils.general_utils import safe_state
 from utils.image_utils import psnr
 from utils.loss_utils import l1_loss, ssim
-
-import wandb
 
 
 def training(
@@ -322,6 +321,8 @@ if __name__ == "__main__":
 
     # Initialize system state (RNG)
     safe_state(args.quiet)
+
+    os.makedirs(args.model_path, exist_ok=True)
 
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
