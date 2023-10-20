@@ -16,7 +16,6 @@ from typing import Dict, List
 
 import numpy as np
 
-from arguments import ModelParams
 from scene.cameras import Camera
 from scene.dataset_readers import SceneInfo, sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
@@ -30,7 +29,7 @@ class Scene:
 
     def __init__(
         self,
-        args: ModelParams,
+        args,
         gaussians: GaussianModel,
         load_iteration=None,
         shuffle=True,
@@ -117,8 +116,7 @@ class Scene:
                 )
             )
         elif args.random_init_points:
-            # TODO: Random Sample 100k points within the bounding box
-            n_points = scene_info.point_cloud.points.shape[0]
+            n_points = 100_000
             point_cloud = BasicPointCloud.random(n_points)
             # conccat_point_cloud = BasicPointCloud(
             #     np.concatenate([scene_info.point_cloud.points, point_cloud.points]),
@@ -141,3 +139,4 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
+
