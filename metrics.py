@@ -31,7 +31,7 @@ def readImages(renders_dir, gt_dir):
         gt_image = tf.to_tensor(gt).unsqueeze(0)[:, :3, :, :]
         yield render_image, gt_image, fname
 
-def evaluate(model_paths):
+def evaluate(source_path, model_paths):
     full_dict = {}
     per_view_dict = {}
     full_dict_polytopeonly = {}
@@ -46,7 +46,7 @@ def evaluate(model_paths):
             full_dict_polytopeonly[scene_dir] = {}
             per_view_dict_polytopeonly[scene_dir] = {}
 
-            test_dir = Path(scene_dir) / "test"
+            test_dir = Path(source_path) / "test"
 
             for method in os.listdir(test_dir):
                 print("Method:", method)
@@ -128,5 +128,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_paths", "-m", required=True, nargs="+", type=str, default=[]
     )
+    parser.add_argument(
+        "--source_path", "-s", required=True, type=str
+    )
     args = parser.parse_args()
-    evaluate(args.model_paths)
+    evaluate(args.source_path, args.model_paths)

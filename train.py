@@ -17,10 +17,11 @@ from random import randint
 
 import numpy as np
 import torch
+from icecream import ic
 from tqdm import tqdm
 
 import wandb
-from arguments import ModelParams, OptimizationParams, PipelineParams
+from arguments import argparser
 from gaussian_renderer import network_gui, render
 from scene import GaussianModel, Scene
 from utils.general_utils import safe_state
@@ -290,10 +291,7 @@ def training_report(
 
 if __name__ == "__main__":
     # Set up command line argument parser
-    parser = ArgumentParser(description="Training script parameters")
-    lp = ModelParams(parser)
-    op = OptimizationParams(parser)
-    pp = PipelineParams(parser)
+    parser = argparser(desc="Training script parameters")
     parser.add_argument("--ip", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=6009)
     parser.add_argument("--debug_from", type=int, default=-1)
@@ -308,14 +306,17 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[7_000, 30_000, 60_000, 90_000, 120_000],
+        default=[i * 500 for i in range(20)],
     )
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--no_shuffle_train", action="store_true")
+    parser.add_argument("--random_init_points", action="store_true")
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
+
+    ic(vars(args))
 
     print("Optimizing " + args.model_path)
 
@@ -335,9 +336,9 @@ if __name__ == "__main__":
         config=vars(args),
     )
     training(
-        lp.extract(args),
-        op.extract(args),
-        pp.extract(args),
+        args,
+        args,
+        args,
         args.test_iterations,
         args.save_iterations,
         args.save_iterations,

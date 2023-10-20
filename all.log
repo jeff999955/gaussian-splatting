@@ -1,0 +1,65 @@
+/media/jeffyct/Data/mamba/gaussian_splatting/bin/python
+Optimizing /media/jeffyct/Data/ScanNet/scans/scene0101_04
+Found pose folder, assuming ScanNet data set! [19/10 02:43:06]
+Train images:  201 [19/10 02:43:06]
+Test  images:  1001 [19/10 02:43:06]
+Loading Training Cameras [19/10 02:43:42]
+Loading Test Cameras [19/10 02:43:44]
+Number of points at initialisation :  4608660 [19/10 02:43:44]
+
+[ITER 7000] Evaluating test: L1 0.48739365486057845 PSNR 5.673045270688289 [19/10 02:51:24]
+
+[ITER 7000] Evaluating train: L1 0.5815336108207703 PSNR 4.116515350341797 [19/10 02:51:24]
+
+[ITER 7000] Saving Gaussians [19/10 02:51:24]
+
+[ITER 7000] Saving Checkpoint [19/10 02:51:44]
+
+[ITER 30000] Evaluating test: L1 0.48739365486057845 PSNR 5.673045270688289 [19/10 03:15:43]
+
+[ITER 30000] Evaluating train: L1 0.5815336108207703 PSNR 4.116515350341797 [19/10 03:15:43]
+
+[ITER 30000] Saving Gaussians [19/10 03:15:43]
+
+[ITER 30000] Saving Checkpoint [19/10 03:16:01]
+
+Training complete. [19/10 03:16:08]
+Optimizing /media/jeffyct/Data/ScanNet/scans/scene0241_01
+Found pose folder, assuming ScanNet data set! [19/10 03:16:24]
+Train images:  293 [19/10 03:16:25]
+Test  images:  1463 [19/10 03:16:25]
+Loading Training Cameras [19/10 03:16:47]
+Loading Test Cameras [19/10 03:16:48]
+Number of points at initialisation :  2891616 [19/10 03:16:49]
+
+[ITER 7000] Evaluating test: L1 0.03712924214121991 PSNR 21.172805026061553 [19/10 03:25:08]
+
+[ITER 7000] Evaluating train: L1 0.03533122763037682 PSNR 21.625807952880862 [19/10 03:25:08]
+
+[ITER 7000] Saving Gaussians [19/10 03:25:08]
+
+[ITER 7000] Saving Checkpoint [19/10 03:25:21]
+
+[ITER 30000] Evaluating test: L1 0.033390116822471054 PSNR 21.60248143788649 [19/10 03:52:40]
+
+[ITER 30000] Evaluating train: L1 0.030339379608631135 PSNR 22.146107482910157 [19/10 03:52:40]
+
+[ITER 30000] Saving Gaussians [19/10 03:52:40]
+
+[ITER 30000] Saving Checkpoint [19/10 03:52:52]
+
+Training complete. [19/10 03:52:57]
+Rendering /media/jeffyct/Data/ScanNet/scans/scene0101_04
+Loading trained model at iteration 30000 [19/10 03:53:06]
+Found pose folder, assuming ScanNet data set! [19/10 03:53:06]
+Train images:  201 [19/10 03:53:07]
+Test  images:  1001 [19/10 03:53:07]
+Loading Training Cameras [19/10 03:53:41]
+Loading Test Cameras [19/10 03:53:42]
+Rendering /media/jeffyct/Data/ScanNet/scans/scene0241_01
+Loading trained model at iteration 30000 [19/10 04:02:38]
+Found pose folder, assuming ScanNet data set! [19/10 04:02:38]
+Train images:  293 [19/10 04:02:38]
+Test  images:  1463 [19/10 04:02:38]
+Loading Training Cameras [19/10 04:02:59]
+Loading Test Cameras [19/10 04:03:01]

@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import List, NamedTuple
 
 import numpy as np
+from icecream import ic
 from PIL import Image
 from plyfile import PlyData, PlyElement
 
-from arguments import ModelParams
 from scene.colmap_loader import (
     qvec2rotmat,
     read_extrinsics_binary,
@@ -97,7 +97,7 @@ def getNerfppNorm(cam_info):
 
 
 def readColmapCameras(
-    args: ModelParams, cam_extrinsics, cam_intrinsics, images_folder
+    args, cam_extrinsics, cam_intrinsics, images_folder
 ) -> List[CameraInfo]:
     cam_infos = []
     pose_path = None
@@ -214,7 +214,7 @@ def storePly(path, xyz, rgb):
     ply_data.write(path)
 
 
-def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> SceneInfo:
+def readColmapSceneInfo(args, path, images, eval, llffhold=8) -> SceneInfo:
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -284,7 +284,6 @@ def readColmapSceneInfo(args: ModelParams, path, images, eval, llffhold=8) -> Sc
     try:
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
     except:
-        print("Failed to load the dense point cloud")
         pcd = None
 
     scene_info = SceneInfo(
@@ -410,7 +409,7 @@ def readScanNetCameras(path):
     sort_key = lambda x: int(os.path.basename(x).split(".")[0])
 
     poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
-    imgs = sorted(glob.glob(os.path.join(path, "color", "*.jpg")), key=sort_key)
+    imgs = sorted(glob.glob(os.path.join(path, "color_full", "*.jpg")), key=sort_key)
 
     fx = intrinsics[0, 0]
     fy = intrinsics[1, 1]
@@ -448,8 +447,10 @@ def readScanNetCameras(path):
     return cam_infos
 
 
-def readScanNetInfo(args: ModelParams, path, eval, llffhold=8) -> SceneInfo:
+def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
     cam_infos = readScanNetCameras(path)
+
+    ic(cam_infos[0])
 
     train_cam_infos: List[CameraInfo] = []
     test_cam_infos: List[CameraInfo] = []
@@ -477,11 +478,11 @@ def readScanNetInfo(args: ModelParams, path, eval, llffhold=8) -> SceneInfo:
 
     plys = glob.glob(os.path.join(path, "*vh_clean.ply"))
 
+    ic(plys)
     try:
         ply_path = plys[0]
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
     except:
-        print("Failed to load the dense point cloud")
         pcd = None
 
     scene_info = SceneInfo(
