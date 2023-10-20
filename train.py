@@ -28,7 +28,7 @@ from utils.general_utils import safe_state
 from utils.image_utils import psnr
 from utils.loss_utils import l1_loss, ssim
 
-
+LOG=False
 def training(
     dataset,
     opt,
@@ -47,7 +47,9 @@ def training(
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
-
+    
+    if LOG:
+        ic(gaussians.get_xyz.shape)
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
@@ -115,6 +117,10 @@ def training(
             render_pkg["visibility_filter"],
             render_pkg["radii"],
         )
+        
+        if LOG:
+            ic(np.sum(np.isnan(gaussians.get_xyz.detach().cpu().numpy())))
+            ic(np.prod(gaussians.get_xyz.shape))
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
@@ -204,9 +210,10 @@ def training_report(
     renderFunc,
     renderArgs,
 ):
-    wandb.log({"train_loss_patches/l1_loss": Ll1.item(), "iteration": iteration})
-    wandb.log({"train_loss_patches/total_loss": loss.item(), "iteration": iteration})
-    wandb.log({"iter_time": elapsed, "iteration": iteration})
+    if LOG:
+        wandb.log({"train_loss_patches/l1_loss": Ll1.item(), "iteration": iteration})
+        wandb.log({"train_loss_patches/total_loss": loss.item(), "iteration": iteration})
+        wandb.log({"iter_time": elapsed, "iteration": iteration})
 
     # Report test and samples of training set
     if iteration in testing_iterations:
@@ -259,18 +266,19 @@ def training_report(
                         iteration, config["name"], l1_test, psnr_test
                     )
                 )
-                wandb.log(
-                    {
-                        config["name"] + "/loss_viewpoint - l1_loss": l1_test,
-                        "iteration": iteration,
-                    }
-                )
-                wandb.log(
-                    {
-                        config["name"] + "/loss_viewpoint - psnr": psnr_test,
-                        "iteration": iteration,
-                    }
-                )
+                if LOG:
+                    wandb.log(
+                        {
+                            config["name"] + "/loss_viewpoint - l1_loss": l1_test,
+                            "iteration": iteration,
+                        }
+                    )
+                    wandb.log(
+                        {
+                            config["name"] + "/loss_viewpoint - psnr": psnr_test,
+                            "iteration": iteration,
+                        }
+                    )
 
         opacity_list = scene.model.get_opacity.detach().cpu().numpy()
         min_opacity = np.min(opacity_list)
@@ -278,19 +286,21 @@ def training_report(
         histogram = np.histogram(
             opacity_list, bins=100, range=(min_opacity, max_opacity)
         )
-        wandb.log(
-            {
-                "opacity_histogram": wandb.Histogram(np_histogram=histogram),
-            }
-        )
-        wandb.log(
-            {"total_points": scene.model.get_xyz.shape[0], "iteration": iteration}
-        )
+        if LOG:
+            wandb.log(
+                {
+                    "opacity_histogram": wandb.Histogram(np_histogram=histogram),
+                }
+            )
+            wandb.log(
+                {"total_points": scene.model.get_xyz.shape[0], "iteration": iteration}
+            )
         torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
     # Set up command line argument parser
+    LOG = os.getenv("LOG") or False
     parser = argparser(desc="Training script parameters")
     parser.add_argument("--ip", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=6009)
@@ -328,13 +338,14 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="gaussian-splatting",
-        # track hyperparameters and run metadata
-        config=vars(args),
-    )
+    
+    if LOG:
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="gaussian-splatting",
+            # track hyperparameters and run metadata
+            config=vars(args),
+        )
     training(
         args,
         args,
@@ -349,4 +360,5 @@ if __name__ == "__main__":
 
     # All done
     print("\nTraining complete.")
-    wandb.finish()
+    if LOG:
+        wandb.finish()

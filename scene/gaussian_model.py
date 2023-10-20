@@ -284,7 +284,7 @@ class GaussianModel:
         optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
         self._opacity = optimizable_tensors["opacity"]
 
-    def load_ply(self, path):
+    def load_ply(self, path, cpu=False):
         plydata = PlyData.read(path)
 
         xyz = np.stack(
@@ -334,32 +334,33 @@ class GaussianModel:
         rots = np.zeros((xyz.shape[0], len(rot_names)))
         for idx, attr_name in enumerate(rot_names):
             rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
-
+        
+        device = "cpu" if cpu else "cuda"
         self._xyz = nn.Parameter(
-            torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True)
+            torch.tensor(xyz, dtype=torch.float, device=device).requires_grad_(True)
         )
         self._features_dc = nn.Parameter(
-            torch.tensor(features_dc, dtype=torch.float, device="cuda")
+            torch.tensor(features_dc, dtype=torch.float, device=device)
             .transpose(1, 2)
             .contiguous()
             .requires_grad_(True)
         )
         self._features_rest = nn.Parameter(
-            torch.tensor(features_extra, dtype=torch.float, device="cuda")
+            torch.tensor(features_extra, dtype=torch.float, device=device)
             .transpose(1, 2)
             .contiguous()
             .requires_grad_(True)
         )
         self._opacity = nn.Parameter(
-            torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(
+            torch.tensor(opacities, dtype=torch.float, device=device).requires_grad_(
                 True
             )
         )
         self._scaling = nn.Parameter(
-            torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True)
+            torch.tensor(scales, dtype=torch.float, device=device).requires_grad_(True)
         )
         self._rotation = nn.Parameter(
-            torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True)
+            torch.tensor(rots, dtype=torch.float, device=device).requires_grad_(True)
         )
 
         self.active_sh_degree = self.max_sh_degree

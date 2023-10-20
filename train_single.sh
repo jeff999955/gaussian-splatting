@@ -12,12 +12,10 @@ python train.py -s $DIR \
     -m $DIR \
     -i $DIR/$COLOR_DIR \
     --data-device cpu \
-    --iterations 10000
+    --iterations 10000 \
+    --random_init_points 
     # --eval \
     # --position_lr_init 0.0016 
-    # --random_init_points \
-    # --n_random_points 100000 \
-    # --use_ground_truth_pose  \
     # --pose_path $DIR/pose 
 
 
