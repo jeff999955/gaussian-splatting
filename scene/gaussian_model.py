@@ -554,7 +554,7 @@ class GaussianModel:
 
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
         grads = self.xyz_gradient_accum / self.denom
-        grads[grads.isnan()] = 0.0
+        grads[grads.isnan()] = 1e-8
 
         self.densify_and_clone(grads, max_grad, extent)
         self.densify_and_split(grads, max_grad, extent)
