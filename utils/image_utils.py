@@ -30,8 +30,11 @@ def resize_all(path):
     imgs = glob.glob(os.path.join(path, "*.jpg"))
     for img in tqdm.tqdm(imgs):
         with Image.open(img) as image:
-            image = image.resize((640, 480))
+            w, h = image.size
+            image = image.resize((w // 2, h // 2), resample=Image.Resampling.LANCZOS)
         image.save(img)
+
+
 
 
 if __name__ == "__main__":
