@@ -17,6 +17,7 @@ from random import randint
 
 import numpy as np
 import torch
+import torchvision
 from icecream import ic
 from tqdm import tqdm
 
@@ -28,7 +29,9 @@ from utils.general_utils import safe_state
 from utils.image_utils import psnr
 from utils.loss_utils import l1_loss, ssim
 
-LOG=False
+LOG = False
+
+
 def training(
     dataset,
     opt,
@@ -42,12 +45,18 @@ def training(
 ):
     first_iter = 0
     gaussians = GaussianModel(dataset.sh_degree)
-    scene = Scene(dataset, gaussians, shuffle=shuffle_train)
+    scene = Scene(
+        dataset, gaussians, shuffle=shuffle_train, resolution_scales=[args.resolution]
+    )
+
+    n_train_cams = len(scene.getTrainCameras(scale=args.resolution))
+
+    saving_iterations = [n_train_cams * i for i in range(5, 100, 5)]
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
-    
+
     if LOG:
         ic(gaussians.get_xyz.shape)
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
@@ -104,7 +113,7 @@ def training(
 
         # Pick a random Camera
         if not viewpoint_stack:
-            viewpoint_stack = scene.getTrainCameras().copy()
+            viewpoint_stack = scene.getTrainCameras(scale=args.resolution).copy()
         viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
 
         # Render
@@ -117,7 +126,7 @@ def training(
             render_pkg["visibility_filter"],
             render_pkg["radii"],
         )
-        
+
         if LOG:
             ic(np.sum(np.isnan(gaussians.get_xyz.detach().cpu().numpy())))
             ic(np.prod(gaussians.get_xyz.shape))
@@ -144,6 +153,7 @@ def training(
             # Log and save
             training_report(
                 iteration,
+                n_train_cams,
                 Ll1,
                 loss,
                 l1_loss,
@@ -201,6 +211,7 @@ def training(
 
 def training_report(
     iteration,
+    n_train_cams,
     Ll1,
     loss,
     l1_loss,
@@ -212,18 +223,20 @@ def training_report(
 ):
     if LOG:
         wandb.log({"train_loss_patches/l1_loss": Ll1.item(), "iteration": iteration})
-        wandb.log({"train_loss_patches/total_loss": loss.item(), "iteration": iteration})
+        wandb.log(
+            {"train_loss_patches/total_loss": loss.item(), "iteration": iteration}
+        )
         wandb.log({"iter_time": elapsed, "iteration": iteration})
 
     # Report test and samples of training set
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
         validation_configs = (
-            {"name": "test", "cameras": scene.getTestCameras()},
+            {"name": "test", "cameras": scene.getTestCameras(scale=args.resolution)},
             {
                 "name": "train",
                 "cameras": [
-                    scene.getTrainCameras()[idx % len(scene.getTrainCameras())]
+                    scene.getTrainCameras(scale=args.resolution)[idx % n_train_cams]
                     for idx in range(5, 30, 5)
                 ],
             },
@@ -233,6 +246,25 @@ def training_report(
             if config["cameras"] and len(config["cameras"]) > 0:
                 l1_test = 0.0
                 psnr_test = 0.0
+                render_path = os.path.join(
+                    scene.model_path,
+                    config["name"],
+                    "ours_{}".format(iteration),
+                    "renders",
+                )
+
+                gts_path = os.path.join(
+                    scene.model_path,
+                    config["name"],
+                    "ours_{}".format(iteration),
+                    "gt",
+                )
+
+                os.makedirs(render_path, exist_ok=True)
+                os.makedirs(gts_path, exist_ok=True)
+
+                print("Saving renders and gt images to {}".format(scene.model_path))
+
                 for idx, viewpoint in enumerate(config["cameras"]):
                     image = torch.clamp(
                         renderFunc(viewpoint, scene.model, *renderArgs)["render"],
@@ -242,6 +274,14 @@ def training_report(
                     gt_image = torch.clamp(
                         viewpoint.original_image.to("cuda"), 0.0, 1.0
                     )
+
+                    torchvision.utils.save_image(
+                        image, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
+                    )
+                    torchvision.utils.save_image(
+                        gt_image, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
+                    )
+
                     # TODO: Find out how to add image to wandb
                     # if idx < 5:
                     #     tb_writer.add_images(
@@ -310,13 +350,13 @@ if __name__ == "__main__":
         "--test_iterations",
         nargs="+",
         type=int,
-        default=[7_000, 30_000, 60_000, 90_000, 120_000],
+        default=[i * 5000 for i in range(20)],
     )
     parser.add_argument(
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[i * 500 for i in range(20)],
+        default=[i * 5000 for i in range(20)],
     )
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
@@ -338,7 +378,7 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    
+
     if LOG:
         wandb.init(
             # set the wandb project where this run will be logged

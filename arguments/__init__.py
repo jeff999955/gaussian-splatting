@@ -32,7 +32,7 @@ def include_model_params(parser):
     loading_args.add_argument("--source-path", "-s", default="", help="Source path")
     loading_args.add_argument("--model-path", "-m", default="", help="Model path")
     loading_args.add_argument("--images", "-i", default="images", help="Images")
-    loading_args.add_argument("--resolution", default=-1, type=int, help="Resolution")
+    loading_args.add_argument("--resolution", default=1, type=float, help="Resolution")
     loading_args.add_argument(
         "--white-background",
         default=False,

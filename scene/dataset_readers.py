@@ -401,7 +401,7 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
     return scene_info
 
 
-def readScanNetCameras(path):
+def readScanNetCameras(path, image_path):
     cam_infos = []
 
     intrinsics = np.loadtxt(os.path.join(path, "intrinsic", "intrinsic_color.txt"))
@@ -409,10 +409,11 @@ def readScanNetCameras(path):
     sort_key = lambda x: int(os.path.basename(x).split(".")[0])
 
     poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
-    imgs = sorted(glob.glob(os.path.join(path, "color_full", "*.jpg")), key=sort_key)
+    imgs = sorted(glob.glob(os.path.join(image_path, "*.jpg")), key=sort_key)
 
-    fx = intrinsics[0, 0]
-    fy = intrinsics[1, 1]
+    # TODO: We should remove this divided by 2 hack
+    fx = intrinsics[0, 0] / 2
+    fy = intrinsics[1, 1] / 2
 
     assert len(poses) == len(imgs)
 
@@ -422,6 +423,13 @@ def readScanNetCameras(path):
     for _, (pose, img) in enumerate(zip(poses, imgs)):
         c2w = np.loadtxt(pose)
         w2c = np.linalg.inv(c2w)
+
+        if np.any(np.isnan(w2c)):
+            ic(f"Something's wrong with {pose}")
+            ic(c2w)
+            ic(w2c)
+
+            continue
         R = np.transpose(
             w2c[:3, :3]
         )  # R is stored transposed due to 'glm' in CUDA code
@@ -448,7 +456,7 @@ def readScanNetCameras(path):
 
 
 def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
-    cam_infos = readScanNetCameras(path)
+    cam_infos = readScanNetCameras(path, args.images)
 
     ic(cam_infos[0])
 

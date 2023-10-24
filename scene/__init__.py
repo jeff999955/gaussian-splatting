@@ -49,7 +49,12 @@ class Scene:
                 )
             else:
                 self.loaded_iter = load_iteration
-            print("Loading trained model at iteration {}".format(self.loaded_iter))
+
+            print(
+                "Loading trained model at iteration {} from {}".format(
+                    self.loaded_iter, os.path.join(self.model_path, "point_cloud")
+                )
+            )
 
         self.train_cameras: Dict[str, List[Camera]] = {}
         self.test_cameras: Dict[str, List[Camera]] = {}
@@ -139,4 +144,3 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
-

@@ -32,7 +32,6 @@ class Camera(nn.Module):
         trans=np.array([0.0, 0.0, 0.0]),
         scale=1.0,
         data_device="cuda",
-        resolution=1.0,
     ):
         super(Camera, self).__init__()
 
@@ -44,7 +43,6 @@ class Camera(nn.Module):
         self.FoVy = FoVy
         self.image_path = image_path
         self.image_name = image_name
-        self.resolution = resolution
         self.image_height = None
         self.image_width = None
 
@@ -87,7 +85,11 @@ class Camera(nn.Module):
     def original_image(self):
         image = Image.open(self.image_path)
 
-        image_tensor = PILtoTorch(image, self.resolution)
+        target_size = (
+            int(self.image_width * self.scale),
+            int(self.image_height * self.scale),
+        )
+        image_tensor = PILtoTorch(image, target_size)
         image.close()
         image_tensor = image_tensor.clamp(0.0, 1.0).to(self.data_device)
 

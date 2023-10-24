@@ -12,6 +12,7 @@
 from typing import List
 
 import numpy as np
+from icecream import ic
 from PIL import Image
 
 from scene.cameras import Camera
@@ -30,6 +31,7 @@ def loadCam(args, id, cam_info: CameraInfo, resolution_scale):
         resolution = round(orig_w / (resolution_scale * args.resolution)), round(
             orig_h / (resolution_scale * args.resolution)
         )
+        scale = args.resolution
     else:  # should be a type that converts to float
         if args.resolution == -1:
             if orig_w > 1600:
@@ -59,7 +61,7 @@ def loadCam(args, id, cam_info: CameraInfo, resolution_scale):
         image_name=cam_info.image_name,
         uid=id,
         data_device=args.data_device,
-        resolution=resolution,
+        scale=scale,
     )
 
 
@@ -68,8 +70,8 @@ def cameraList_from_camInfos(
 ) -> List[Camera]:
     camera_list = []
 
-    for id, c in enumerate(cam_infos):
-        camera_list.append(loadCam(args, id, c, resolution_scale))
+    for idx, c in enumerate(cam_infos):
+        camera_list.append(loadCam(args, idx, c, resolution_scale))
 
     return camera_list
 
