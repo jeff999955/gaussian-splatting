@@ -12,6 +12,7 @@
 import glob
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import List, NamedTuple
@@ -32,6 +33,7 @@ from scene.colmap_loader import (
 )
 from scene.gaussian_model import BasicPointCloud
 from utils.graphics_utils import focal2fov, fov2focal, getWorld2View2
+from utils.loadCalibration import loadCalibrationCameraToPose
 from utils.sh_utils import SH2RGB
 
 
@@ -505,8 +507,165 @@ def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
     return scene_info
 
 
+kitti_cameras = ["00", "01"]
+
+
+def readKittiCameras(root_path, frame_list_path: str, step=10):
+    """
+    frame_list_path: absolute path to the text file containing the list of path to images
+    """
+
+    assert os.path.isfile(frame_list_path)
+
+    # TODO: read all images from frame_list_path
+    with open(frame_list_path) as f:
+        image_paths = f.readlines()
+
+    image_paths = [
+        os.path.join(frame_list_path.replace(".txt", ""), image_path).strip()
+        for image_path in image_paths
+    ]
+
+    images_id = [int(os.path.basename(x).split(".")[0]) for x in image_paths]
+    test_id_list = set(images_id[::step])
+    train_id_list = set(images_id) - set(test_id_list)
+
+    scan_name = image_paths[0].split("/")[-4]
+    train_cam_infos, test_cam_infos = [], []
+
+    # * Load files shared between cameras
+    intrinsic_file = os.path.join(root_path, "calibration", "perspective.txt")
+    with open(intrinsic_file) as f:
+        intrinsics = f.readlines()
+
+    # * Load the camera extrinsics into a list
+    pose_file = os.path.join(root_path, "data_poses", scan_name, "poses.txt")
+    poses = np.loadtxt(pose_file)
+    frames, poses = poses[:, 0].astype(np.int32), np.reshape(poses[:, 1:], (-1, 3, 4))
+
+    cam_to_pose = loadCalibrationCameraToPose(
+        os.path.join(root_path, "calibration", "calib_cam_to_pose.txt")
+    )
+
+    for cam_id in kitti_cameras:
+        # * Change if not working
+        image_paths = list(
+            map(lambda x: re.sub(r"image_(0[0-9])", f"image_{cam_id}", x), image_paths)
+        )
+
+        # * Load the camera intrinsics
+        intrinsic_loaded = False
+        for line in intrinsics:
+            line = line.split(" ")
+            if line[0] == f"P_rect_{cam_id}:":
+                K = np.array(line[1:], dtype=np.float32)
+                K = np.reshape(K, (3, 4))
+                intrinsic_loaded = True
+            elif line[0] == f"R_rect_{cam_id}:":
+                R_rect = np.eye(4)
+                R_rect[:3, :3] = np.array([float(x) for x in line[1:]]).reshape(3, 3)
+            elif line[0] == f"S_rect_{cam_id}:":
+                width = int(float(line[1]))
+                height = int(float(line[2]))
+
+        assert intrinsic_loaded == True
+        assert width > 0 and height > 0
+
+        fx = K[0, 0]
+        fy = K[1, 1]
+
+        # * Load the camera extrinsics along with images
+        assert f"image_{cam_id}" in cam_to_pose
+
+        c2w_list = [0 for _ in range(frames.max() + 1)]
+        for frame, pose in zip(frames, poses):
+            pose = np.concatenate([pose, np.array([[0, 0, 0, 1]])], axis=0)
+            c2w_list[frame] = (
+                pose @ cam_to_pose.get(f"image_{cam_id}") @ np.linalg.inv(R_rect)
+            )
+
+        # * Load all images
+        for idx, img in enumerate(image_paths):
+            frame_idx = int(img.split("/")[-1].split(".")[0])
+            c2w = c2w_list[frame_idx]
+            w2c = np.linalg.inv(c2w)
+
+            if np.any(np.isnan(w2c)):
+                ic(f"Something's wrong with {frame_idx}")
+                ic(c2w)
+                ic(w2c)
+
+                continue
+            R = np.transpose(
+                w2c[:3, :3]
+            )  # R is stored transposed due to 'glm' in CUDA code
+            T = w2c[:3, 3]
+
+            # TODO: try different height and width
+            FovY = focal2fov(fy, height)
+            FovX = focal2fov(fx, width)
+
+            cam_info = CameraInfo(
+                uid=frame_idx,
+                R=R,
+                T=T,
+                FovY=FovY,
+                FovX=FovX,
+                image=None,  # Lazily load the image in training loop
+                image_path=img,
+                image_name=str(frame_idx),
+                width=width,
+                height=height,
+            )
+
+            if idx == 0:
+                print("Camera Info")
+                print(cam_info)
+                print(cam_id)
+            if frame_idx in train_id_list:
+                train_cam_infos.append(cam_info)
+            elif frame_idx in test_id_list:
+                test_cam_infos.append(cam_info)
+            else:
+                print("Something's wrong with the train/test split")
+                print(f"Frame {frame_idx} not in train nor test list")
+
+    return train_cam_infos, test_cam_infos
+
+
+def readKittiInfo(args, path, images_list, eval, llffhold=8) -> SceneInfo:
+    train_cam_infos, test_cam_infos = readKittiCameras(path, images_list)
+    # test_cam_infos: List[CameraInfo] = readKittiCameras(
+    #     path, args.images.replace("train", "test")
+    # )
+    print("Train images: ", len(train_cam_infos))
+    print("Test  images: ", len(test_cam_infos), set([x.uid for x in test_cam_infos]))
+
+    nerf_normalization = getNerfppNorm(train_cam_infos)
+
+    ply_path = os.path.join(
+        path, "pcd", os.path.basename(images_list).replace("txt", "ply")
+    )
+    try:
+        pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
+        print("Loading point cloud from ", ply_path)
+    except:
+        pcd = None
+        print("No point cloud found")
+
+    scene_info = SceneInfo(
+        point_cloud=pcd,
+        train_cameras=train_cam_infos,
+        test_cameras=test_cam_infos,
+        nerf_normalization=nerf_normalization,
+        ply_path=ply_path,
+    )
+    return scene_info
+
+
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender": readNerfSyntheticInfo,
     "ScanNet": readScanNetInfo,
+    "Kitti": readKittiInfo,
 }
