@@ -9,10 +9,11 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+import glob
 import os
 import sys
 from PIL import Image
-from typing import NamedTuple
+from typing import List, NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
@@ -218,7 +219,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             
     return cam_infos
 
-def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
+def readNerfSyntheticInfo(path, white_background, eval, extension=".png", stride=1):
     print("Reading Training Transforms")
     train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension)
     print("Reading Test Transforms")
@@ -228,10 +229,12 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
         train_cam_infos.extend(test_cam_infos)
         test_cam_infos = []
 
+    train_cam_infos = train_cam_infos[::stride]
+
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
-    ply_path = os.path.join(path, "points3d.ply")
-    if not os.path.exists(ply_path):
+    ply_path = os.path.join(path, "colmap_results/dense/fused.ply")
+    if False: # always ~~generate random point cloud~~, instead load from ply
         # Since this data set has no colmap data, we start with random points
         num_pts = 100_000
         print(f"Generating random point cloud ({num_pts})...")
@@ -254,7 +257,100 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
                            ply_path=ply_path)
     return scene_info
 
+def readScanNetCameras(path, image_path):
+    cam_infos = []
+
+    intrinsics = np.loadtxt(os.path.join(path, "intrinsic", "intrinsic_color.txt"))
+
+    sort_key = lambda x: int(os.path.basename(x).split(".")[0])
+
+    poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
+    imgs = sorted(glob.glob(os.path.join(image_path, "*.jpg")), key=sort_key)
+
+    # TODO: We should remove this divided by 2 hack
+    fx = intrinsics[0, 0] / 2
+    fy = intrinsics[1, 1] / 2
+
+    assert len(poses) == len(imgs)
+
+    with Image.open(imgs[0]) as image:
+        width, height = image.size
+
+    for _, (pose, img) in enumerate(zip(poses, imgs)):
+        c2w = np.loadtxt(pose)
+        w2c = np.linalg.inv(c2w)
+
+        if np.any(np.isnan(w2c)):
+            print(f"Something's wrong with {pose}")
+            print(c2w)
+            print(w2c)
+
+            continue
+        R = np.transpose(
+            w2c[:3, :3]
+        )  # R is stored transposed due to 'glm' in CUDA code
+        T = w2c[:3, 3]
+
+        FovY = focal2fov(fy, height)
+        FovX = focal2fov(fx, width)
+
+        image_name = os.path.basename(img).split(".")[0]
+        image = Image.open(img)
+        cam_info = CameraInfo(
+            uid=int(image_name),
+            R=R,
+            T=T,
+            FovY=FovY,
+            FovX=FovX,
+            image=image,
+            image_path=img,
+            image_name=image_name,
+            width=width,
+            height=height,
+        )
+        cam_infos.append(cam_info)
+    return cam_infos
+
+
+def readScanNetInfo(args, path, eval, llffhold=8, stride=5) -> SceneInfo:
+    cam_infos = readScanNetCameras(path, args.images)
+
+    train_cam_infos: List[CameraInfo] = []
+    test_cam_infos: List[CameraInfo] = []
+
+    if eval:
+        train_cam_infos = cam_infos[::stride]
+        test_cam_infos = [*cam_infos]
+
+    else:
+        train_cam_infos = cam_infos
+        test_cam_infos = []
+
+    print("Train images: ", len(train_cam_infos))
+    print("Test  images: ", len(test_cam_infos))
+
+    nerf_normalization = getNerfppNorm(train_cam_infos)
+
+    plys = glob.glob(os.path.join(path, "*vh_clean.ply"))
+
+    try:
+        ply_path = plys[0]
+        pcd = fetchPly(ply_path)
+    except:
+        print("Could not find ply file", plys)
+        pcd = None
+
+    scene_info = SceneInfo(
+        point_cloud=pcd,
+        train_cameras=train_cam_infos,
+        test_cameras=test_cam_infos,
+        nerf_normalization=nerf_normalization,
+        ply_path=ply_path,
+    )
+    return scene_info
+
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
-    "Blender" : readNerfSyntheticInfo
+    "Blender" : readNerfSyntheticInfo,
+    "ScanNet": readScanNetInfo,
 }
