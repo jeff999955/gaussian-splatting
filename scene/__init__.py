@@ -65,15 +65,20 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["Colmap"](
                 args, args.source_path, args.images, args.eval
             )
+        elif os.path.exists(os.path.join(args.source_path, "pose")):
+            print("Found pose folder, assuming ScanNet data set!")
+            scene_info = sceneLoadTypeCallbacks["ScanNet"](
+                args, args.source_path, args.eval,
+            )
+        elif os.path.exists(os.path.join(args.source_path, "calibration")):
+            print("Found calibration folder, assuming Kitti data set!")
+            scene_info = sceneLoadTypeCallbacks["Kitti"](
+                args, args.source_path, args.images, args.eval
+                )
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](
                 args.source_path, args.white_background, args.eval
-            )
-        elif os.path.exists(os.path.join(args.source_path, "pose")):
-            print("Found pose folder, assuming ScanNet data set!")
-            scene_info = sceneLoadTypeCallbacks["ScanNet"](
-                args, args.source_path, args.eval
             )
         else:
             assert False, "Could not recognize scene type!"
