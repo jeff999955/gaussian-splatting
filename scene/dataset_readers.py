@@ -526,11 +526,16 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
         for image_path in image_paths
     ]
 
-    images_id = [int(os.path.basename(x).split(".")[0]) for x in image_paths]
-    test_id_list = set(images_id[::step])
-    train_id_list = set(images_id) - set(test_id_list)
+    all_image_paths = image_paths + [path.replace("image_00", "image_01") for path in image_paths]
+    
 
-    scan_name = image_paths[0].split("/")[-4]
+    images_id = list(range(len(all_image_paths)))
+    test_id_list = images_id[::step]
+    train_id_list = list(set(images_id) - set(test_id_list))
+    print("all_id_list", len(images_id))
+    print(test_id_list)
+
+    scan_name = all_image_paths[0].split("/")[-4]
     train_cam_infos, test_cam_infos = [], []
 
     # * Load files shared between cameras
@@ -547,6 +552,7 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
         os.path.join(root_path, "calibration", "calib_cam_to_pose.txt")
     )
 
+    idx = 0    
     for cam_id in kitti_cameras:
         # * Change if not working
         image_paths = list(
@@ -579,13 +585,14 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
 
         c2w_list = [0 for _ in range(frames.max() + 1)]
         for frame, pose in zip(frames, poses):
-            pose = np.concatenate([pose, np.array([[0, 0, 0, 1]])], axis=0)
+            pose = np.concatenate([pose, np.array([[0.0, 0.0, 0.0, 1.0]])], axis=0)
             c2w_list[frame] = (
                 pose @ cam_to_pose.get(f"image_{cam_id}") @ np.linalg.inv(R_rect)
             )
 
         # * Load all images
-        for idx, img in enumerate(image_paths):
+        
+        for _, img in enumerate(image_paths):
             frame_idx = int(img.split("/")[-1].split(".")[0])
             c2w = c2w_list[frame_idx]
             w2c = np.linalg.inv(c2w)
@@ -618,18 +625,14 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
                 height=height,
             )
 
-            if idx == 0:
-                print("Camera Info")
-                print(cam_info)
-                print(cam_id)
-            if frame_idx in train_id_list:
+            if idx in train_id_list:
                 train_cam_infos.append(cam_info)
-            elif frame_idx in test_id_list:
+            elif idx in test_id_list:
                 test_cam_infos.append(cam_info)
             else:
                 print("Something's wrong with the train/test split")
                 print(f"Frame {frame_idx} not in train nor test list")
-
+            idx += 1
     return train_cam_infos, test_cam_infos
 
 
@@ -639,7 +642,7 @@ def readKittiInfo(args, path, images_list, eval, llffhold=8) -> SceneInfo:
     #     path, args.images.replace("train", "test")
     # )
     print("Train images: ", len(train_cam_infos))
-    print("Test  images: ", len(test_cam_infos), set([x.uid for x in test_cam_infos]))
+    print("Test  images: ", len(test_cam_infos), [x.image_path for x in test_cam_infos])
 
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
