@@ -15,7 +15,7 @@ from PIL import Image
 from torch import nn
 
 from utils.general_utils import PILtoTorch
-from utils.graphics_utils import getProjectionMatrix, getWorld2View2
+from utils.graphics_utils import fov2focal, getProjectionMatrix, getWorld2View2
 
 
 class Camera(nn.Module):
@@ -32,6 +32,10 @@ class Camera(nn.Module):
         trans=np.array([0.0, 0.0, 0.0]),
         scale=1.0,
         data_device="cuda",
+        fx=None,
+        fy=None,
+        cx=None,
+        cy=None,
     ):
         super(Camera, self).__init__()
 
@@ -57,6 +61,12 @@ class Camera(nn.Module):
                 f"[Warning] Custom device {data_device} failed, fallback to default cuda device"
             )
             self.data_device = torch.device("cuda")
+        
+        self.fx = fx or fov2focal(FoVx, self.image_width)
+        self.fy = fy or fov2focal(FoVy, self.image_height)
+
+        self.cx = cx or self.image_width / 2
+        self.cy = cy or self.image_height / 2
 
         self.zfar = 100.0
         self.znear = 0.01
@@ -69,7 +79,7 @@ class Camera(nn.Module):
         )
         self.projection_matrix = (
             getProjectionMatrix(
-                znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy
+                self.znear, self.zfar, self.FoVx, self.FoVy, self.cx, self.cy, self.image_width, self.image_height 
             )
             .transpose(0, 1)
             .cuda()

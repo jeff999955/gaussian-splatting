@@ -21,15 +21,10 @@ from icecream import ic
 from PIL import Image
 from plyfile import PlyData, PlyElement
 
-from scene.colmap_loader import (
-    qvec2rotmat,
-    read_extrinsics_binary,
-    read_extrinsics_text,
-    read_intrinsics_binary,
-    read_intrinsics_text,
-    read_points3D_binary,
-    read_points3D_text,
-)
+from scene.colmap_loader import (qvec2rotmat, read_extrinsics_binary,
+                                 read_extrinsics_text, read_intrinsics_binary,
+                                 read_intrinsics_text, read_points3D_binary,
+                                 read_points3D_text)
 from scene.gaussian_model import BasicPointCloud
 from utils.graphics_utils import focal2fov, fov2focal, getWorld2View2
 from utils.sh_utils import SH2RGB
@@ -62,6 +57,10 @@ class CameraInfo(NamedTuple):
     image_name: str
     width: int
     height: int
+    fx: float = None
+    fy: float = None
+    cx: float = None
+    cy: float = None
 
 
 class SceneInfo(NamedTuple):
