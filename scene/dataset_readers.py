@@ -417,7 +417,7 @@ def readScanNetCameras(path, image_path):
     cx = intrinsics[0, 2] * x_scale
     cy = intrinsics[1, 2] * y_scale
 
-    assert len(poses) == len(imgs)
+    poses = poses[:len(imgs)]
 
     with Image.open(imgs[0]) as image:
         width, height = image.size
