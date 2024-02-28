@@ -408,13 +408,14 @@ def readScanNetCameras(path, image_path):
     sort_key = lambda x: int(os.path.basename(x).split(".")[0])
 
     poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
-    imgs = sorted(glob.glob(os.path.join(image_path, "*.jpg")), key=sort_key)
+    imgs = sorted(glob.glob(os.path.join(image_path, "*.png")), key=sort_key)
 
     # TODO: We should remove this divided by 2 hack
-    x_scale = 620 / 1296
-    y_scale = 440 / 968
+    x_scale = y_scale = 0.5
     fx = intrinsics[0, 0] * x_scale
     fy = intrinsics[1, 1] * y_scale
+    cx = intrinsics[0, 2] * x_scale
+    cy = intrinsics[1, 2] * y_scale
 
     assert len(poses) == len(imgs)
 
@@ -451,6 +452,10 @@ def readScanNetCameras(path, image_path):
             image_name=image_name,
             width=width,
             height=height,
+            fx=fx,
+            fy=fy,
+            cx=cx,
+            cy=cy,
         )
         cam_infos.append(cam_info)
     return cam_infos
