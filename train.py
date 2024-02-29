@@ -51,7 +51,6 @@ def training(
 
     n_train_cams = len(scene.getTrainCameras(scale=args.resolution))
 
-    saving_iterations = [n_train_cams * i for i in range(5, 100, 5)]
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
