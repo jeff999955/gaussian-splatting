@@ -1,22 +1,35 @@
 #!/bin/zsh
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <scene_id>"
-    exit 1
-fi
 
-DIR=`realpath $1`
+DIR="/ubc/cs/research/kmyi/wsun/scratch/dataset/kitti360"
 
-SCANS=("00") #  "01" "02" "03" "04")
-SCAN="${2:-train_00}"
-MODEL_DIR="kitti_exp_train_00"
+SCANS=("00" "01" "02" "03" "04")
+ITERS=("5000" "10000" "15000" "20000" "25000" "30000")
 
 for scan in ${SCANS[@]}; do
-    model_dir="kitti_exp_train_${scan}"
-    python train.py -s $DIR \
-        -m $DIR/$model_dir \
+    echo python train.py -s $DIR \
+        -m ./exp/kitti/train_$scan \
         -i $DIR/data_2d_nvs_drop50/train_$scan.txt \
         --data-device cpu \
         --iterations 30000 \
-        --eval \
-        --opacity_reset_interval 1000
+        --eval
+
+    for iter in ${ITERS[@]}; do
+        python render.py -s $DIR \
+            -m ./exp/kitti/train_$scan \
+            -i $DIR/data_2d_nvs_drop50/train_$scan.txt \
+            --data-device cpu \
+            --iteration $iter 
+
+        python /jeffyct-ssd/projects/GS-Collection/evaluate.py \
+            -i ./exp/kitti/train_$scan/train/ours_$iter/renders \
+            -g ./exp/kitti/train_$scan/train/ours_$iter/gt \
+            -m psnr ssim lpips vgglpips \
+            --prefix "train_${scan}_${iter}_train" | tee -a kitti.csv
+
+        python /jeffyct-ssd/projects/GS-Collection/evaluate.py \
+            -i ./exp/kitti/train_$scan/test/ours_$iter/renders \
+            -g ./exp/kitti/train_$scan/test/ours_$iter/gt \
+            -m psnr ssim lpips vgglpips \
+            --prefix "train_${scan}_${iter}_test" | tee -a kitti.csv
+    done
 done
