@@ -578,6 +578,8 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
 
         fx = K[0, 0]
         fy = K[1, 1]
+        cx = K[0, 2]
+        cy = K[1, 2]
 
         # * Load the camera extrinsics along with images
         assert f"image_{cam_id}" in cam_to_pose
@@ -622,6 +624,10 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
                 image_name=str(frame_idx),
                 width=width,
                 height=height,
+                fx=fx,
+                fy=fy,
+                cx=cx,
+                cy=cy
             )
 
             if idx in train_id_list:
