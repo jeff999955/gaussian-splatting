@@ -49,6 +49,9 @@ def training(
         dataset, gaussians, shuffle=shuffle_train, resolution_scales=[args.resolution]
     )
 
+    is_scannet = os.path.exists(os.path.join(args.source_path, "pose"))
+    margin = 10 if is_scannet else 0
+
     n_train_cams = len(scene.getTrainCameras(scale=args.resolution))
 
     saving_iterations = [n_train_cams * i for i in range(5, 100, 5)]
@@ -133,6 +136,9 @@ def training(
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
+        image = image[:, margin:-margin, margin:-margin]
+        gt_image = gt_image[:, margin:-margin, margin:-margin]
+
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
             1.0 - ssim(image, gt_image)
