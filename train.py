@@ -161,6 +161,7 @@ def training(
                 scene,
                 render,
                 (pipe, background),
+                is_kitti_test=args.is_kitti_test,
             )
             if iteration in saving_iterations:
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
@@ -219,7 +220,9 @@ def training_report(
     scene: Scene,
     renderFunc,
     renderArgs,
+    is_kitti_test=False,
 ):
+    is_render_gt = not is_kitti_test
     if LOG:
         wandb.log({"train_loss_patches/l1_loss": Ll1.item(), "iteration": iteration})
         wandb.log(
@@ -270,16 +273,17 @@ def training_report(
                         0.0,
                         1.0,
                     )
-                    gt_image = torch.clamp(
-                        viewpoint.original_image.to("cuda"), 0.0, 1.0
-                    )
-
                     torchvision.utils.save_image(
                         image, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
                     )
-                    torchvision.utils.save_image(
-                        gt_image, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
-                    )
+                    if is_render_gt:
+                        gt_image = torch.clamp(
+                            viewpoint.original_image.to("cuda"), 0.0, 1.0
+                        )
+                        torchvision.utils.save_image(
+                            gt_image, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
+                        )
+
 
                     # TODO: Find out how to add image to wandb
                     # if idx < 5:
@@ -296,15 +300,19 @@ def training_report(
                     #             gt_image[None],
                     #             global_step=iteration,
                     #         )
-                    l1_test += l1_loss(image, gt_image).mean().double()
-                    psnr_test += psnr(image, gt_image).mean().double()
-                psnr_test /= len(config["cameras"])
-                l1_test /= len(config["cameras"])
-                print(
-                    "\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(
-                        iteration, config["name"], l1_test, psnr_test
+                    if is_render_gt:
+                        l1_test += l1_loss(image, gt_image).mean().double()
+                        psnr_test += psnr(image, gt_image).mean().double()
+                if is_render_gt:
+                    psnr_test /= len(config["cameras"])
+                    l1_test /= len(config["cameras"])
+                    print(
+                        "\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(
+                            iteration, config["name"], l1_test, psnr_test
+                        )
                     )
-                )
+                else:
+                    print("Specified not to render gt images")
                 if LOG:
                     wandb.log(
                         {
@@ -362,7 +370,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--no_shuffle_train", action="store_true")
     parser.add_argument("--random_init_points", action="store_true")
-    parser.add_argument("--is_kitti_test", action="store_true")
+    parser.add_argument("--is_kitti_test", action="store_true", default=False)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
 

@@ -50,8 +50,11 @@ class Camera(nn.Module):
         self.image_height = None
         self.image_width = None
 
-        with Image.open(self.image_path) as image:
-            self.image_width, self.image_height = image.size
+        try:
+            with Image.open(self.image_path) as image:
+                self.image_width, self.image_height = image.size
+        except:
+            self.image_width, self.image_height = 1408, 376
 
         try:
             self.data_device = torch.device(data_device)

@@ -24,7 +24,7 @@ from scene import Scene
 from utils.general_utils import safe_state
 
 
-def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
+def render_set(model_path, name, iteration, views, gaussians, pipeline, background, is_render_gt=True):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
 
@@ -33,13 +33,15 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         rendering = render(view, gaussians, pipeline, background)["render"]
-        gt = view.original_image[0:3, :, :]
         torchvision.utils.save_image(
             rendering, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
         )
-        torchvision.utils.save_image(
-            gt, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
-        )
+
+        if is_render_gt:
+            gt = view.original_image[0:3, :, :]
+            torchvision.utils.save_image(
+                gt, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
+            )
 
 
 def render_sets(
@@ -49,6 +51,8 @@ def render_sets(
     skip_train: bool,
     skip_test: bool,
 ):
+    is_render_gt = not dataset.is_kitti_test 
+    
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         ic(vars(dataset))
@@ -56,6 +60,8 @@ def render_sets(
 
         bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+
+    
 
         if not skip_train:
             render_set(
@@ -77,6 +83,7 @@ def render_sets(
                 gaussians,
                 pipeline,
                 background,
+                is_render_gt=is_render_gt,
             )
 
 
@@ -87,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_train", action="store_true")
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--is_kitti_test", action="store_true", default=False)
     args = parser.parse_args()
 
     ic(args)

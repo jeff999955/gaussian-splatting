@@ -73,7 +73,7 @@ class Scene:
         elif os.path.exists(os.path.join(args.source_path, "calibration")):
             print("Found calibration folder, assuming Kitti data set!")
             scene_info = sceneLoadTypeCallbacks["Kitti"](
-                args, args.source_path, args.images, args.eval, args.is_kitti_test
+                args, args.source_path, args.images, args.is_kitti_test
                 )
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")

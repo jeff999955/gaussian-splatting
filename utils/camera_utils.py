@@ -24,8 +24,11 @@ WARNED = False
 
 
 def loadCam(args, id, cam_info: CameraInfo, resolution_scale):
-    with Image.open(cam_info.image_path) as image:
-        orig_w, orig_h = image.size
+    if args.is_kitti_test:
+        orig_w, orig_h = 1408, 376 # This is a hack for KITTI dataset 
+    else:
+        with Image.open(cam_info.image_path) as image:
+            orig_w, orig_h = image.size
 
     if args.resolution in [1, 2, 4, 8]:
         resolution = round(orig_w / (resolution_scale * args.resolution)), round(
