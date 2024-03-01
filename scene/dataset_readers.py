@@ -506,10 +506,7 @@ def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
     return scene_info
 
 
-kitti_cameras = ["00", "01"]
-
-
-def readKittiCameras(root_path, frame_list_path: str, step=10):
+def readKittiCameras(root_path, frame_list_path: str, step=10, kitti_cameras = ["00", "01"]):
     """
     frame_list_path: absolute path to the text file containing the list of path to images
     """
@@ -525,7 +522,10 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
         for image_path in image_paths
     ]
 
-    all_image_paths = image_paths + [path.replace("image_00", "image_01") for path in image_paths]
+    if len(kitti_cameras) == 2: # ["00", "01"]
+        all_image_paths = image_paths + [path.replace("image_00", "image_01") for path in image_paths]
+    else: # ["00"]
+        all_image_paths = image_paths
     
 
     images_id = list(range(len(all_image_paths)))
@@ -645,7 +645,7 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
     train_cam_infos, test_cam_infos = readKittiCameras(path, images_list)
     if is_test:
         train_cam_infos = train_cam_infos + test_cam_infos
-        test_cam_infos = readKittiCameras(path, images_list.replace("train_", "test_"))
+        test_cam_infos = readKittiCameras(path, images_list.replace("train_", "test_"), kitti_cameras=["00"])
         test_cam_infos = test_cam_infos[0] + test_cam_infos[1]
         
     print("Train images: ", len(train_cam_infos))
