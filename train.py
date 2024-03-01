@@ -362,6 +362,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--no_shuffle_train", action="store_true")
     parser.add_argument("--random_init_points", action="store_true")
+    parser.add_argument("--is_kitti_test", action="store_true")
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
 

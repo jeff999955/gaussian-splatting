@@ -641,11 +641,13 @@ def readKittiCameras(root_path, frame_list_path: str, step=10):
     return train_cam_infos, test_cam_infos
 
 
-def readKittiInfo(args, path, images_list, eval, llffhold=8) -> SceneInfo:
+def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
     train_cam_infos, test_cam_infos = readKittiCameras(path, images_list)
-    # test_cam_infos: List[CameraInfo] = readKittiCameras(
-    #     path, args.images.replace("train", "test")
-    # )
+    if is_test:
+        train_cam_infos = train_cam_infos + test_cam_infos
+        test_cam_infos = readKittiCameras(path, images_list.replace("train_", "test_"))
+        test_cam_infos = test_cam_infos[0] + test_cam_infos[1]
+        
     print("Train images: ", len(train_cam_infos))
     print("Test  images: ", len(test_cam_infos), [x.image_path for x in test_cam_infos])
 
