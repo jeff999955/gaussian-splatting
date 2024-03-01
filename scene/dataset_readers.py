@@ -491,12 +491,29 @@ def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
 
     plys = glob.glob(os.path.join(path, "*vh_clean.ply"))
 
-    ic(plys)
-    try:
-        ply_path = plys[0]
+    random_init = True
+    
+    if random_init:
+        ply_path = os.path.join(path, "points3d.ply")
+        # Since this data set has no colmap data, we start with random points
+        num_pts = 100_000
+        print(f"Generating random point cloud ({num_pts})...")
+
+        xyz = np.random.random((num_pts, 3)) * 10.0 - 5.0
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(
+            points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3))
+        )
+
+        storePly(ply_path, xyz, SH2RGB(shs) * 255)
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
-    except:
-        pcd = None
+    else:
+        ic(plys)
+        try:
+            ply_path = plys[0]
+            pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
+        except:
+            pcd = None
 
     scene_info = SceneInfo(
         point_cloud=pcd,
