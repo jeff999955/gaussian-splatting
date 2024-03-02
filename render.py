@@ -77,7 +77,7 @@ def render_sets(
         if not skip_test:
             render_set(
                 dataset.model_path,
-                "test",
+                "test_full" if dataset.is_kitti_test else "test",
                 scene.loaded_iter,
                 scene.getTestCameras(),
                 gaussians,

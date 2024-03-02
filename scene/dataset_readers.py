@@ -650,7 +650,10 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
         test_cam_infos = sorted(test_cam_infos, key=lambda x: x.uid)
         
     print("Train images: ", len(train_cam_infos))
-    print("Test  images: ", len(test_cam_infos), [x.image_path for x in test_cam_infos])
+    print("Test  images: ", len(test_cam_infos))
+
+    for cam in test_cam_infos:
+        print(cam.image_path)
 
     nerf_normalization = getNerfppNorm(train_cam_infos)
 

@@ -18,7 +18,7 @@ parser.add_argument(
 parser.add_argument(
     "--rendered_dir_name",
     type=str,
-    default="test_real",
+    default="test_full",
     help="Name for each directory that stores the testing set.",
 )
 args = parser.parse_args()
