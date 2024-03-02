@@ -647,6 +647,7 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
         train_cam_infos = train_cam_infos + test_cam_infos
         test_cam_infos = readKittiCameras(path, images_list.replace("train_", "test_"), kitti_cameras=["00"])
         test_cam_infos = test_cam_infos[0] + test_cam_infos[1]
+        test_cam_infos = sorted(test_cam_infos, key=lambda x: x.uid)
         
     print("Train images: ", len(train_cam_infos))
     print("Test  images: ", len(test_cam_infos), [x.image_path for x in test_cam_infos])
