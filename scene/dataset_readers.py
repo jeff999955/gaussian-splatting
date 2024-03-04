@@ -660,6 +660,36 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
     ply_path = os.path.join(
         path, "pcd", os.path.basename(images_list).replace("txt", "ply")
     )
+
+    if args.random_init_pcd:
+        # Read the original
+        plydata = PlyData.read(ply_path)
+        vertices = plydata["vertex"]
+        x, y, z = vertices["x"], vertices["y"], vertices["z"]
+
+        min_x, max_x = min(x), max(x)
+        min_y, max_y = min(y), max(y)
+        min_z, max_z = min(z), max(z)
+
+        # Generate a random point cloud
+        ply_path = os.path.join(path, "points3d.ply")
+        num_pts = 400_000
+        print(f"Generating random point cloud ({num_pts})...")
+
+        # We create random points inside the bounds of the synthetic Blender scenes
+        xyz = np.random.random((num_pts, 3))
+        xyz[:, 0] = xyz[:, 0] * (max_x - min_x) + min_x
+        xyz[:, 1] = xyz[:, 1] * (max_y - min_y) + min_y
+        xyz[:, 2] = xyz[:, 2] * (max_z - min_z) + min_z
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(
+            points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3))
+        )
+
+        storePly(ply_path, xyz, SH2RGB(shs) * 255)
+
+
+
     try:
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
         print("Loading point cloud from ", ply_path)

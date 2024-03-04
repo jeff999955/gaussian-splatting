@@ -95,6 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--is_kitti_test", action="store_true", default=False)
+    parser.add_argument("--random_init_pcd", action="store_true")
     args = parser.parse_args()
 
     ic(args)
