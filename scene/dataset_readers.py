@@ -410,7 +410,8 @@ def readScanNetCameras(path, image_path):
     poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
     imgs = sorted(glob.glob(os.path.join(image_path, "*.png")), key=sort_key)
 
-    x_scale = y_scale = 0.5
+    x_scale = 640 / 1296
+    y_scale = 480 / 968
     fx = intrinsics[0, 0] * x_scale
     fy = intrinsics[1, 1] * y_scale
     cx = intrinsics[0, 2] * x_scale
