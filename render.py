@@ -24,9 +24,10 @@ from scene import Scene
 from utils.general_utils import safe_state
 
 
-def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
+def render_set(model_path, name, iteration, views, gaussians, pipeline, background, margin=0):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
+    print("Rendering to", render_path)
 
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
@@ -34,11 +35,16 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         rendering = render(view, gaussians, pipeline, background)["render"]
         gt = view.original_image[0:3, :, :]
+
+        output_rendering = torch.zeros_like(rendering)
+        output_rendering[:, margin:-margin, margin:-margin] = rendering[:, margin:-margin, margin:-margin]
+        output_gt = torch.zeros_like(gt)
+        output_gt[:, margin:-margin, margin:-margin] = gt[:, margin:-margin, margin:-margin]
         torchvision.utils.save_image(
-            rendering, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
+            output_rendering, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
         )
         torchvision.utils.save_image(
-            gt, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
+            output_gt, os.path.join(gts_path, "{0:05d}".format(idx) + ".png")
         )
 
 
@@ -49,6 +55,8 @@ def render_sets(
     skip_train: bool,
     skip_test: bool,
 ):
+    is_scannet = os.path.exists(os.path.join(args.source_path, "pose"))
+    margin = 10 if is_scannet else 0
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         ic(vars(dataset))
@@ -66,6 +74,7 @@ def render_sets(
                 gaussians,
                 pipeline,
                 background,
+                margin=margin
             )
 
         if not skip_test:
@@ -77,6 +86,7 @@ def render_sets(
                 gaussians,
                 pipeline,
                 background,
+                margin=margin
             )
 
 

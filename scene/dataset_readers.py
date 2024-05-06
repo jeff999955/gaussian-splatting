@@ -408,15 +408,16 @@ def readScanNetCameras(path, image_path):
     sort_key = lambda x: int(os.path.basename(x).split(".")[0])
 
     poses = sorted(glob.glob(os.path.join(path, "pose", "*.txt")), key=sort_key)
-    imgs = sorted(glob.glob(os.path.join(image_path, "*.jpg")), key=sort_key)
+    imgs = sorted(glob.glob(os.path.join(image_path, "*.png")), key=sort_key)
 
-    # TODO: We should remove this divided by 2 hack
-    x_scale = 620 / 1296
-    y_scale = 440 / 968
+    x_scale = 640 / 1296
+    y_scale = 480 / 968
     fx = intrinsics[0, 0] * x_scale
     fy = intrinsics[1, 1] * y_scale
+    cx = intrinsics[0, 2] * x_scale
+    cy = intrinsics[1, 2] * y_scale
 
-    assert len(poses) == len(imgs)
+    poses = poses[:len(imgs)]
 
     with Image.open(imgs[0]) as image:
         width, height = image.size
@@ -451,6 +452,10 @@ def readScanNetCameras(path, image_path):
             image_name=image_name,
             width=width,
             height=height,
+            fx=fx,
+            fy=fy,
+            cx=cx,
+            cy=cy,
         )
         cam_infos.append(cam_info)
     return cam_infos
@@ -487,12 +492,29 @@ def readScanNetInfo(args, path, eval, llffhold=8) -> SceneInfo:
 
     plys = glob.glob(os.path.join(path, "*vh_clean.ply"))
 
-    ic(plys)
-    try:
-        ply_path = plys[0]
+    random_init = True
+    
+    if random_init:
+        ply_path = os.path.join(path, "points3d.ply")
+        # Since this data set has no colmap data, we start with random points
+        num_pts = 100_000
+        print(f"Generating random point cloud ({num_pts})...")
+
+        xyz = np.random.random((num_pts, 3)) * 10.0 - 5.0
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(
+            points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3))
+        )
+
+        storePly(ply_path, xyz, SH2RGB(shs) * 255)
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
-    except:
-        pcd = None
+    else:
+        ic(plys)
+        try:
+            ply_path = plys[0]
+            pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
+        except:
+            pcd = None
 
     scene_info = SceneInfo(
         point_cloud=pcd,
