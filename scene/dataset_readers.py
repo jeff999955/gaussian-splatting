@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 from typing import List, NamedTuple
 
+import torch
 import numpy as np
 from icecream import ic
 from PIL import Image
@@ -30,6 +31,181 @@ from scene.gaussian_model import BasicPointCloud
 from utils.graphics_utils import focal2fov, fov2focal, getWorld2View2
 from utils.loadCalibration import loadCalibrationCameraToPose
 from utils.sh_utils import SH2RGB
+
+import torch_scatter
+
+"""
+Beginning of voxelization_utils
+"""
+
+# Please cite "4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural
+# Networks", CVPR'19 (https://arxiv.org/abs/1904.08755) if you use any part
+# of the code.
+try:
+    # "ugly way to deal with incompatible."
+    from collections import Sequence
+except:
+    from collections.abc import Sequence
+
+
+def fnv_hash_vec(arr):
+    '''
+    FNV64-1A
+    '''
+    assert arr.ndim == 2
+    # Floor first for negative coordinates
+    arr = arr.copy()
+    arr = arr.astype(np.uint64, copy=False)
+    hashed_arr = np.uint64(14695981039346656037) * \
+                 np.ones(arr.shape[0], dtype=np.uint64)
+    for j in range(arr.shape[1]):
+        hashed_arr *= np.uint64(1099511628211)
+        hashed_arr = np.bitwise_xor(hashed_arr, arr[:, j])
+    return hashed_arr
+
+
+def ravel_hash_vec(arr):
+    '''
+    Ravel the coordinates after subtracting the min coordinates.
+    '''
+    assert arr.ndim == 2
+    arr = arr.copy()
+    arr -= arr.min(0)
+    arr = arr.astype(np.uint64, copy=False)
+    arr_max = arr.max(0).astype(np.uint64) + 1
+
+    keys = np.zeros(arr.shape[0], dtype=np.uint64)
+    # Fortran style indexing
+    for j in range(arr.shape[1] - 1):
+        keys += arr[:, j]
+        keys *= arr_max[j + 1]
+    keys += arr[:, -1]
+    return keys
+
+
+def sparse_quantize(coords,
+                    feats=None,
+                    labels=None,
+                    ignore_label=255,
+                    set_ignore_label_when_collision=False,
+                    return_index=False,
+                    hash_type='fnv',
+                    quantization_size=1):
+    r'''Given coordinates, and features (optionally labels), the function
+    generates quantized (voxelized) coordinates.
+
+    Args:
+        coords (:attr:`numpy.ndarray` or :attr:`torch.Tensor`): a matrix of size
+        :math:`N \times D` where :math:`N` is the number of points in the
+        :math:`D` dimensional space.
+
+        feats (:attr:`numpy.ndarray` or :attr:`torch.Tensor`, optional): a matrix of size
+        :math:`N \times D_F` where :math:`N` is the number of points and
+        :math:`D_F` is the dimension of the features.
+
+        labels (:attr:`numpy.ndarray`, optional): labels associated to eah coordinates.
+
+        ignore_label (:attr:`int`, optional): the int value of the IGNORE LABEL.
+
+        set_ignore_label_when_collision (:attr:`bool`, optional): use the `ignore_label`
+        when at least two points fall into the same cell.
+
+        return_index (:attr:`bool`, optional): True if you want the indices of the
+        quantized coordinates. False by default.
+
+        hash_type (:attr:`str`, optional): Hash function used for quantization. Either
+        `ravel` or `fnv`. `ravel` by default.
+
+        quantization_size (:attr:`float`, :attr:`list`, or
+        :attr:`numpy.ndarray`, optional): the length of the each side of the
+        hyperrectangle of of the grid cell.
+
+    .. note::
+        Please check `examples/indoor.py` for the usage.
+
+    '''
+    use_label = labels is not None
+    use_feat = feats is not None
+    if not use_label and not use_feat:
+        return_index = True
+
+    assert hash_type in [
+        'ravel', 'fnv'
+    ], "Invalid hash_type. Either ravel, or fnv allowed. You put hash_type=" + hash_type
+    assert coords.ndim == 2, \
+        "The coordinates must be a 2D matrix. The shape of the input is " + str(coords.shape)
+    if use_feat:
+        assert feats.ndim == 2
+        assert coords.shape[0] == feats.shape[0]
+    if use_label:
+        assert coords.shape[0] == len(labels)
+
+    # Quantize the coordinates
+    dimension = coords.shape[1]
+    if isinstance(quantization_size, (Sequence, np.ndarray, torch.Tensor)):
+        assert len(
+            quantization_size
+        ) == dimension, "Quantization size and coordinates size mismatch."
+        quantization_size = [i for i in quantization_size]
+    elif np.isscalar(quantization_size):  # Assume that it is a scalar
+        quantization_size = [quantization_size for i in range(dimension)]
+    else:
+        raise ValueError('Not supported type for quantization_size.')
+    discrete_coords = np.floor(coords / np.array(quantization_size))
+
+    # Hash function type
+    if hash_type == 'ravel':
+        key = ravel_hash_vec(discrete_coords)
+    else:
+        key = fnv_hash_vec(discrete_coords)
+
+    if use_label:
+        _, inds, counts = np.unique(key, return_index=True, return_counts=True)
+        filtered_labels = labels[inds]
+        if set_ignore_label_when_collision:
+            filtered_labels[counts > 1] = ignore_label
+        if return_index:
+            return inds, filtered_labels
+        else:
+            return discrete_coords[inds], feats[inds], filtered_labels
+    else:
+        _, inds, inds_reverse = np.unique(key, return_index=True, return_inverse=True)
+        if return_index:
+            return inds, inds_reverse
+        else:
+            if use_feat:
+                return discrete_coords[inds], feats[inds]
+            else:
+                return discrete_coords[inds]
+            
+"""
+End of voxelization_utils
+"""
+
+
+
+def voxelize(coords, voxel_size=0.02):
+    assert coords.shape[1] == 3 and coords.shape[0]
+
+    voxelization_matrix = np.eye(4)
+    scale = 1 / voxel_size
+    np.fill_diagonal(voxelization_matrix[:3, :3], scale)
+    # Apply transformations
+    rigid_transformation = voxelization_matrix  
+
+    homo_coords = np.hstack((coords, np.ones((coords.shape[0], 1), dtype=coords.dtype)))
+    coords_aug = homo_coords @ rigid_transformation.T[:, :3]
+
+    # Align all coordinates to the origin.
+    min_coords = coords_aug.min(0)
+    M_t = np.eye(4)
+    M_t[:3, -1] = -min_coords
+    rigid_transformation = M_t @ rigid_transformation
+    coords_aug = coords_aug - min_coords
+    coords_aug = np.floor(coords_aug)
+    inds, inds_reconstruct = sparse_quantize(coords_aug, return_index=True)
+    coords_aug= coords_aug[inds]
+    return coords_aug, rigid_transformation, inds, inds_reconstruct
 
 
 class CameraInfo(NamedTuple):
@@ -640,6 +816,22 @@ def readKittiCameras(root_path, frame_list_path: str, step=10, kitti_cameras = [
             idx += 1
     return train_cam_infos, test_cam_infos
 
+def grid_sampling(coords, voxel_size, color=None):   
+    _, _, _, inds_inverse = voxelize(
+        coords, voxel_size)
+
+    coords = torch.from_numpy(coords).cuda()
+    color = torch.from_numpy(color).cuda()
+    inds_inverse = torch.from_numpy(inds_inverse).long().cuda() 
+    coords_sampled = torch_scatter.scatter(coords, inds_inverse, dim=0, reduce="mean")
+
+    if color is not None:
+        color_sampled = torch_scatter.scatter(color, inds_inverse, dim=0, reduce="mean")
+
+    if color is not None:
+        return coords_sampled, color_sampled 
+    else:
+        return coords_sampled 
 
 def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
     train_cam_infos, test_cam_infos = readKittiCameras(path, images_list)
@@ -648,8 +840,7 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
         test_cam_infos = readKittiCameras(path, images_list.replace("train_", "test_"), kitti_cameras=["00"])
         test_cam_infos = test_cam_infos[0] + test_cam_infos[1]
         test_cam_infos = sorted(test_cam_infos, key=lambda x: x.uid)
-        
-    print("Train images: ", len(train_cam_infos))
+        print("Train images: ", len(train_cam_infos))
     print("Test  images: ", len(test_cam_infos))
 
     for cam in test_cam_infos:
@@ -693,7 +884,38 @@ def readKittiInfo(args, path, images_list, is_test=False) -> SceneInfo:
     try:
         pcd = fetchPly(ply_path, mask=args.use_ground_truth_pose)
         print("Loading point cloud from ", ply_path)
-    except:
+        print("Downsampling")
+
+        xyz, color = pcd.points, pcd.colors
+        print(xyz.shape)
+        print(color.shape)
+        print("=====")
+        # points_xyz, points_color = grid_sampling(xyz, self.opt.vsize[0],  color)
+        points_xyz, points_color = grid_sampling(xyz, 0.005,  color)
+        num_pts = len(points_xyz)
+        print(f"After downsampling, initialization from {num_pts} points")
+
+        resample_pnts = args.resample_pnts
+        if resample_pnts > 0: 
+            points_xyz_all = points_xyz
+            # percentage ratio
+            resample_pnts =  int(len(points_xyz_all) * (resample_pnts / 100.0))
+            if resample_pnts == 1:
+                print("points_xyz_all",points_xyz_all.shape)
+                inds = torch.min(torch.norm(points_xyz_all, dim=-1, keepdim=True), dim=0)[1] # use the point closest to the origin
+            else:
+                inds = torch.randperm(len(points_xyz_all))[:resample_pnts, ...]
+
+            points_xyz_all = points_xyz_all[inds, ...]
+            points_xyz = points_xyz_all
+            points_color = points_color[inds, ...]
+            num_pts = resample_pnts
+
+            print(points_xyz.shape) 
+            print(points_color.shape)
+            print(f"Using {num_pts} points for initialization")
+            pcd = BasicPointCloud(points=points_xyz.cpu().numpy(), colors=points_color.cpu().numpy(), normals=np.zeros((num_pts, 3)))
+    except Exception as e:
         pcd = None
         print("No point cloud found")
 
